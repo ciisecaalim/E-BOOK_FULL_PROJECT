@@ -3,19 +3,16 @@ const Order = require("../model/orderModel");
 // CREATE ORDER
 const createOrder = async (req, res) => {
   try {
-    console.log("Incoming order:", req.body);
-    const { customer, products, totalAmount } = req.body;
-
+    const { customer, email, phone, address, products, totalAmount } = req.body;
     if (!customer || !products || !totalAmount) {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    const newOrder = new Order({ customer, products, totalAmount });
+    const newOrder = new Order({ customer, email, phone, address, products, totalAmount });
     await newOrder.save();
-
-    res.status(201).json({ success: true, message: "Order created successfully" });
+    res.status(201).json({ success: true, message: "Order created successfully", order: newOrder });
   } catch (err) {
-    console.error("CREATE ORDER ERROR:", err);
+    console.error(err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
@@ -31,12 +28,31 @@ const readOrder = async (req, res) => {
   }
 };
 
+// UPDATE PAYMENT STATUS
+const updatePaymentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { paymentStatus } = req.body;
+
+    if (!paymentStatus) return res.status(400).json({ success: false, message: "paymentStatus is required" });
+
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    order.paymentStatus = paymentStatus;
+    await order.save();
+
+    res.status(200).json({ success: true, message: "Payment status updated", order });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 // TOTAL INCOME
 const getTotalIncome = async (req, res) => {
   try {
-    const income = await Order.aggregate([
-      { $group: { _id: null, totalIncome: { $sum: "$totalAmount" } } }
-    ]);
+    const income = await Order.aggregate([{ $group: { _id: null, totalIncome: { $sum: "$totalAmount" } } }]);
     res.status(200).json({ success: true, totalIncome: income[0]?.totalIncome || 0 });
   } catch (err) {
     console.error(err);
@@ -59,4 +75,10 @@ const getTopCustomer = async (req, res) => {
   }
 };
 
-module.exports = { createOrder, readOrder, getTotalIncome, getTopCustomer };
+module.exports = {
+  createOrder,
+  readOrder,
+  updatePaymentStatus,
+  getTotalIncome,
+  getTopCustomer
+};
