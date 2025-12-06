@@ -23,6 +23,7 @@ function Sidebar() {
     { to: "/dash/add-book", icon: "fa-plus", title: "Add Book" },
     { to: "/dash/customers", icon: "fa-user", title: "Customers" },
     { to: "/dash/orders", icon: "fa-shopping-cart", title: "orders" },
+    { to: "/dash/ContactsDashboard", icon: "fa-shopping-cart", title: "Contacts Dashboard" },
     { to: "/dash/AddCategory", icon: "fa-shopping-cart", title: "AddCategory" },
     { to: "/dash/addOrder", icon: "fa-cart-plus", title: "Add Orders" },
     { to: "/dash/RecycleBin", icon: "fa-cart-plus", title: "RecycleBin" },

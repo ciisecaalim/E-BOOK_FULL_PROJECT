@@ -6,7 +6,9 @@ const contactSchema = new mongoose.Schema({
   email: { type: String, required: true },
   subject: { type: String, required: true },
   message: { type: String, required: true },
+  status: { type: String, default: "unread" },
   createdAt: { type: Date, default: Date.now },
+  deletedAt: { type: Date, default: null }, // Soft delete
 });
 
 module.exports = mongoose.model("Contact", contactSchema);

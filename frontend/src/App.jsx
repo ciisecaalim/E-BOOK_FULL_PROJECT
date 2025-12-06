@@ -25,6 +25,8 @@ import AboutUs from "./components/about";
 import AddCategory from "./components/AddCategory";
 import RecycleBin from "./components/RecycleBin";
 import ContactUs from "./components/contuct";
+import ContactsDashboard from "./components/contactbackend";
+ 
 
 function App() {
   return (
@@ -33,6 +35,7 @@ function App() {
         {/* Public Routes */}
         <Route path="/" element={<Home />} />
         <Route path="/AboutUs" element={<AboutUs />} />
+        <Route path="/ContactUs" element={<ContactUs />} />
         <Route path="/ContactUs" element={<ContactUs />} />
         <Route path="/admin" element={<AdminRegister />} />
         <Route path="/CategoryPage" element={<CategoryPage />} />
@@ -57,6 +60,7 @@ function App() {
           <Route path="books" element={<BookTable />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="addOrder" element={<AddOrder />} />
+          <Route path="ContactsDashboard" element={<ContactsDashboard />} />
           <Route path="RecycleBin" element={<RecycleBin />} />
           <Route path="AddCategory" element={<AddCategory />} />
           <Route path="add-book" element={<BookForm />} />
