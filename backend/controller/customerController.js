@@ -1,70 +1,85 @@
-// controller/customerController.js
-const customerModel = require("../model/cutomerModel");
+const Customer = require("../model/cutomerModel");
 const bcrypt = require("bcryptjs");
 
-// Create Customer
+// CREATE CUSTOMER
 const createCustomer = async (req, res) => {
   try {
     const { name, email, phone, address, password } = req.body;
-    const checkEmail = await customerModel.findOne({ email });
-    if (checkEmail) {
-      return res.status(400).json({ error: "Email already exists" });
-    }
 
-    const hashPassword = await bcrypt.hash(password, 10);
-    const newCustomer = new customerModel({
+    const exists = await Customer.findOne({ email });
+    if (exists) return res.status(400).json({ error: "Email already exists" });
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const customer = new Customer({
       name,
       email,
       phone,
       address,
-      password: hashPassword,
+      password: hashed,
     });
 
-    const savedCustomer = await newCustomer.save();
-    return res.status(201).json(savedCustomer);
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: "Server error" });
+    await customer.save();
+    res.status(201).json(customer);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
   }
 };
 
-// Login
+// LOGIN
 const customerLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const existingCustomer = await customerModel.findOne({ email });
-    if (!existingCustomer) return res.status(400).json({ error: "Invalid email" });
 
-    const validPass = await bcrypt.compare(password, existingCustomer.password);
-    if (!validPass) return res.status(400).json({ error: "Invalid password" });
+    const customer = await Customer.findOne({ email });
+    if (!customer) return res.status(400).json({ error: "Invalid email" });
 
-    res.status(200).json({
-      message: "Login successful",
-      customer: existingCustomer,
-    });
-  } catch (error) {
+    const match = await bcrypt.compare(password, customer.password);
+    if (!match) return res.status(400).json({ error: "Invalid password" });
+
+    res.status(200).json({ message: "Login successful", customer });
+  } catch (err) {
     res.status(500).json({ error: "Server error" });
   }
 };
 
-// Read
+// READ ALL
 const readCustomer = async (req, res) => {
   try {
-    const customers = await customerModel.find().select("-password");
+    const customers = await Customer.find().select("-password");
     res.status(200).json(customers);
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({ error: "Server error" });
   }
 };
 
-// Delete
+// GET BY EMAIL
+const getCustomerByEmail = async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ email: req.params.email }).select("-password");
+
+    if (!customer) return res.status(404).json({ error: "Customer not found" });
+
+    res.status(200).json(customer);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+// DELETE CUSTOMER
 const deleteCustomer = async (req, res) => {
   try {
-    await customerModel.findByIdAndDelete(req.params.id);
+    await Customer.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: "Deleted successfully" });
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({ error: "Server error" });
   }
 };
 
-module.exports = { createCustomer, customerLogin, readCustomer, deleteCustomer };
+module.exports = {
+  createCustomer,
+  customerLogin,
+  readCustomer,
+  getCustomerByEmail,
+  deleteCustomer,
+};

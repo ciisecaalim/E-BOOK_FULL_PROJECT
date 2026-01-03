@@ -38,6 +38,7 @@ app.use("/api/contact", contactRoutes);
 
 // Serve static files
 app.use("/uploads", express.static("uploads"));
+
 app.use("/allImg", express.static("document"));
 
 // Connect MongoDB

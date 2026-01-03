@@ -1,12 +1,10 @@
 const express = require("express");
-const { createOrder, readOrder, updatePaymentStatus, getTotalIncome, getTopCustomer } = require("../controller/orderController");
-
+const { createOrder, readOrders, updatePaymentStatus, deleteOrder } = require("../controller/orderController");
 const router = express.Router();
 
 router.post("/create", createOrder);
-router.get("/read", readOrder);
+router.get("/read", readOrders);
 router.put("/update-payment/:id", updatePaymentStatus);
-router.get("/getIncome", getTotalIncome);
-router.get("/getTopCustomer", getTopCustomer);
+router.delete("/delete/:id", deleteOrder);
 
 module.exports = router;

@@ -1,149 +1,90 @@
-const productModel = require("../model/productModel");
+const Product = require("../model/productModel");
 
-// CREATE
+/* CREATE */
 const createProduct = async (req, res) => {
   try {
-    const newData = new productModel({
-      name: req.body.name,
-      quantity: req.body.quantity,
-      price: req.body.price,
-      category: req.body.category,
-      prImg: req.file.filename,
+    const product = new Product({
+      ...req.body,
+      prImg: req.file ? req.file.filename : null,
+      originalPrice: req.body.originalPrice || req.body.price,
+      sellingPrice: req.body.sellingPrice || req.body.price,
     });
-    const saveData = await newData.save();
-    res.status(200).send(saveData);
-  } catch (error) {
-    res.status(500).send({ message: "Error creating product", error });
+
+    res.status(201).json(await product.save());
+  } catch (err) {
+    res.status(500).json(err);
   }
 };
 
-// READ (Filter by category or return all, excluding deleted)
+/* READ */
 const readProduct = async (req, res) => {
-  try {
-    const { category } = req.body || {};
-    let filterData = { deleted: false }; // ignore deleted products
-
-    if (category && category.trim() !== "") {
-      filterData.category = category;
-    }
-
-    const getData = await productModel.find(filterData);
-    res.status(200).send(getData);
-  } catch (error) {
-    res.status(500).send({ message: "Error reading products", error });
-  }
+  res.json(await Product.find({ deleted: false }));
 };
 
-// UPDATE
-const updateProduct = async (req, res) => {
-  try {
-    const putPro = await productModel.updateOne(
-      { _id: req.params.id },
-      {
-        $set: {
-          name: req.body.name,
-          quantity: req.body.quantity,
-          price: req.body.price,
-          category: req.body.category,
-          prImg: req.file ? req.file.filename : undefined,
-        },
-      }
-    );
-    res.status(200).send(putPro);
-  } catch (error) {
-    res.status(500).send({ message: "Error updating product", error });
-  }
-};
-
-// READ SINGLE
 const readSingleData = async (req, res) => {
-  try {
-    const getdata = await productModel.findById(req.params.id);
-    res.status(200).send(getdata);
-  } catch (error) {
-    res.status(500).send({ message: "Error reading single product", error });
-  }
+  res.json(await Product.findById(req.params.id));
 };
 
-// SOFT DELETE (move to Recycle Bin)
+/* UPDATE */
+const updateProduct = async (req, res) => {
+  const updateData = { ...req.body };
+  if (req.file) updateData.prImg = req.file.filename;
+
+  res.json(
+    await Product.findByIdAndUpdate(req.params.id, updateData, { new: true })
+  );
+};
+
+/* SOFT DELETE */
 const deletedata = async (req, res) => {
-  try {
-    const product = await productModel.findByIdAndUpdate(
+  res.json(
+    await Product.findByIdAndUpdate(
       req.params.id,
       { deleted: true, deletedAt: new Date() },
       { new: true }
-    );
-    if (!product) return res.status(404).send({ message: "Product not found" });
-    res.status(200).send({ message: "Product moved to Recycle Bin", product });
-  } catch (error) {
-    res.status(500).send({ message: "Error deleting product", error });
-  }
+    )
+  );
 };
 
-// GET DELETED PRODUCTS
-const deletedProducts = async (req, res) => {
-  try {
-    const books = await productModel.find({ deleted: true });
-    res.status(200).send(books);
-  } catch (error) {
-    res.status(500).send({ message: "Error fetching deleted products", error });
-  }
-};
-
-// RESTORE PRODUCT
+/* RESTORE */
 const restoreProduct = async (req, res) => {
-  try {
-    const book = await productModel.findByIdAndUpdate(
+  res.json(
+    await Product.findByIdAndUpdate(
       req.params.id,
       { deleted: false, deletedAt: null },
       { new: true }
-    );
-    if (!book) return res.status(404).send({ message: "Product not found" });
-    res.status(200).send({ message: "Product restored", book });
-  } catch (error) {
-    res.status(500).send({ message: "Error restoring product", error });
-  }
+    )
+  );
 };
 
-// PERMANENT DELETE
+/* PERMANENT DELETE */
 const permanentDelete = async (req, res) => {
-  try {
-    await productModel.findByIdAndDelete(req.params.id);
-    res.status(200).send({ message: "Product permanently deleted" });
-  } catch (error) {
-    res.status(500).send({ message: "Error permanently deleting product", error });
-  }
+  await Product.findByIdAndDelete(req.params.id);
+  res.json({ message: "Deleted permanently" });
 };
 
-// READ ALL
+/* EXTRA */
+const deletedProducts = async (req, res) => {
+  res.json(await Product.find({ deleted: true }));
+};
+
 const readAllDocu = async (req, res) => {
-  try {
-    const getData = await productModel.find();
-    res.status(200).send(getData);
-  } catch (error) {
-    res.status(500).send({ message: "Error retrieving documents", error });
-  }
+  res.json(await Product.find());
 };
 
-// READ DISTINCT CATEGORIES
 const getCategories = async (req, res) => {
-  try {
-    const categories = await productModel.distinct("category");
-    res.status(200).send(categories);
-  } catch (error) {
-    res.status(500).send({ message: "Error getting categories", error });
-  }
+  res.json(await Product.distinct("category"));
 };
 
 module.exports = {
   createProduct,
   readProduct,
-  updateProduct,
   readSingleData,
+  updateProduct,
   deletedata,
-  deletedProducts,
   restoreProduct,
   permanentDelete,
+  deletedProducts,
   readAllDocu,
   getCategories,
 };

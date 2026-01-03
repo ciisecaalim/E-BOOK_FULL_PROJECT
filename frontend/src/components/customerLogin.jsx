@@ -1,134 +1,80 @@
-import { useState, useRef, useEffect } from "react";
-import axios from "axios";
+// CustomerLogin.jsx
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { useNavigate } from "react-router";
-import HeaderBookStore from "./Header";
 
 function CustomerLogin() {
-  const [gmail, setGmail] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [active, setActive] = useState("customer");
+  const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
 
-  const emailRef = useRef(null);
-
-  useEffect(() => {
-    // Auto-focus on Gmail input
-    emailRef.current?.focus();
-  }, [active]);
-
-  const validate = () => {
-    if (!/^[\w.-]+@[\w.-]+\.\w{2,}$/.test(gmail)) {
-      toast.error("Invalid email address");
-      return false;
-    }
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return false;
-    }
-    return true;
-  };
-
-  const handleInsert = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-
-    if (!validate()) return;
-
-    const url =
-      active === "customer"
-        ? "http://localhost:3000/api/customers/login"
-        : "http://localhost:3000/api/admin/login";
-
-    const payload = { email: gmail, password };
+    setLoading(true);
 
     try {
-      const res = await axios.post(url, payload);
+      const res = await fetch("http://localhost:3000/api/customers/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
 
-      localStorage.setItem(active, JSON.stringify(res.data));
+      if (res.ok) {
+        toast.success("Customer logged in successfully");
 
-      toast.success(`${active} logged in successfully`);
-      navigate(active === "customer" ? "/" : "/dash");
-    } catch (error) {
-      console.error(error);
+        // Save email to localStorage
+        localStorage.setItem("customerEmail", email);
 
-      const serverMessage =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Invalid email or password";
+        // Restore pendingItem to product
+        const pending = localStorage.getItem("pendingItem");
+        if (pending) {
+          localStorage.setItem("product", pending);
+          localStorage.removeItem("pendingItem");
+        }
 
-      toast.error(serverMessage);
+        // Redirect to cartpage to continue checkout
+        navigate("/CartPage");
+      } else {
+        toast.error(data.error || "Login failed");
+      }
+    } catch (err) {
+      toast.error("Server error");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div>
-      <HeaderBookStore />
-
-      <form
-        onSubmit={handleInsert}
-        className="max-w-md mx-auto p-6 mt-28 bg-white rounded-xl shadow-md space-y-4"
-      >
-        {/* Toggle buttons */}
-        <div className="flex gap-5 text-2xl">
-          <button
-            type="button"
-            onClick={() => setActive("customer")}
-            className={`px-12 py-3 rounded-lg ${
-              active === "customer"
-                ? "bg-blue-500 text-white"
-                : "border border-black text-black"
-            }`}
-          >
-            Customer
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActive("admin")}
-            className={`px-12 py-3 rounded-lg ${
-              active === "admin"
-                ? "bg-blue-500 text-white"
-                : "border border-black text-black"
-            }`}
-          >
-            Admin
-          </button>
-        </div>
-
-        <h2 className="text-2xl font-bold text-center mb-4 text-orange-600">
-          {active === "customer" ? "Customer Login" : "Admin Login"}
-        </h2>
-
-        <div>
-          <label className="block mb-1 font-medium">Gmail</label>
-          <input
-            ref={emailRef}
-            type="email"
-            className="w-full border border-gray-300 rounded p-2"
-            required
-            value={gmail}
-            onChange={(e) => setGmail(e.target.value)}
-            placeholder="example@gmail.com"
-          />
-        </div>
-
-        <div>
-          <label className="block mb-1 font-medium">Password</label>
-          <input
-            type="password"
-            className="w-full border border-gray-300 rounded p-2"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 8 characters"
-          />
-        </div>
-
+    <div className="max-w-md mx-auto mt-20 p-6 bg-white shadow-lg rounded-lg">
+      <h2 className="text-2xl font-bold mb-4 text-center">Customer Login</h2>
+      <form onSubmit={handleLogin} className="space-y-4">
+        <input
+          type="email"
+          placeholder="Email"
+          className="w-full border px-3 py-2 rounded"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          className="w-full border px-3 py-2 rounded"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
         <button
           type="submit"
-          className="w-full bg-orange-500 text-white p-2 rounded hover:bg-orange-600"
+          className={`w-full py-3 bg-purple-700 text-white rounded font-bold ${
+            loading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          disabled={loading}
         >
-          {active === "customer" ? "Login Customer" : "Login Admin"}
+          {loading ? "Logging in..." : "Login"}
         </button>
       </form>
     </div>

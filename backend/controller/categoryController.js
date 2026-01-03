@@ -1,5 +1,3 @@
-// categoryController.js
-
 const Category = require("../model/categoryModel");
 
 // CREATE CATEGORY

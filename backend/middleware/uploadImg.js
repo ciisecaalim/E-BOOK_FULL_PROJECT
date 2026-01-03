@@ -1,19 +1,33 @@
-const multer = require("multer")
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
+// hubi folder-ka
+const uploadDir = "uploads";
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
 
-const storeImg = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "document")
-    },
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName =
+      Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueName + path.extname(file.originalname));
+  },
+});
 
-    filename: (req, file, cb) => {
-        cb(null, file.originalname)
-    }
-})
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("image/")) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only images allowed"), false);
+  }
+};
 
-
-const uploadImage = multer({
-    storage : storeImg
-})
-
-module.exports = uploadImage
+module.exports = multer({
+  storage,
+  fileFilter,
+});

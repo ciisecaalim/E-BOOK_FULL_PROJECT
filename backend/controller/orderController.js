@@ -4,81 +4,65 @@ const Order = require("../model/orderModel");
 const createOrder = async (req, res) => {
   try {
     const { customer, email, phone, address, products, totalAmount } = req.body;
+
     if (!customer || !products || !totalAmount) {
-      return res.status(400).json({ success: false, message: "Missing required fields" });
+      return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const newOrder = new Order({ customer, email, phone, address, products, totalAmount });
-    await newOrder.save();
-    res.status(201).json({ success: true, message: "Order created successfully", order: newOrder });
+    const order = new Order({
+      customer,
+      email,
+      phone,
+      address,
+      products,
+      totalAmount,
+    });
+
+    await order.save();
+    res.status(201).json(order);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ message: "Error creating order", error: err });
   }
 };
 
-// READ ALL ORDERS
-const readOrder = async (req, res) => {
+// READ ORDERS
+const readOrders = async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
-    res.status(200).json({ success: true, orders });
+    res.status(200).json(orders);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ message: "Error fetching orders", error: err });
   }
 };
 
-// UPDATE PAYMENT STATUS
+// UPDATE PAYMENT
 const updatePaymentStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { paymentStatus } = req.body;
 
-    if (!paymentStatus) return res.status(400).json({ success: false, message: "paymentStatus is required" });
-
     const order = await Order.findById(id);
-    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
     order.paymentStatus = paymentStatus;
     await order.save();
 
-    res.status(200).json({ success: true, message: "Payment status updated", order });
+    res.status(200).json(order);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ message: "Error updating payment", error: err });
   }
 };
 
-// TOTAL INCOME
-const getTotalIncome = async (req, res) => {
+// DELETE ORDER
+const deleteOrder = async (req, res) => {
   try {
-    const income = await Order.aggregate([{ $group: { _id: null, totalIncome: { $sum: "$totalAmount" } } }]);
-    res.status(200).json({ success: true, totalIncome: income[0]?.totalIncome || 0 });
+    const order = await Order.findByIdAndDelete(req.params.id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    res.status(200).json({ message: "Order deleted" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ message: "Error deleting order", error: err });
   }
 };
 
-// TOP CUSTOMERS
-const getTopCustomer = async (req, res) => {
-  try {
-    const top = await Order.aggregate([
-      { $group: { _id: "$customer", totalSpent: { $sum: "$totalAmount" }, orders: { $sum: 1 } } },
-      { $sort: { totalSpent: -1 } },
-      { $limit: 5 }
-    ]);
-    res.status(200).json({ success: true, topCustomers: top });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
-module.exports = {
-  createOrder,
-  readOrder,
-  updatePaymentStatus,
-  getTotalIncome,
-  getTopCustomer
-};
+module.exports = { createOrder, readOrders, updatePaymentStatus, deleteOrder };

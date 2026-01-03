@@ -1,35 +1,32 @@
 const mongoose = require("mongoose");
 
-const productSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  quantity: { type: Number, required: true },
-  price: { type: Number, required: true },
-  prImg: { type: String, required: true },
-  status: {
-    type: String,
-    enum: ["available", "out of stock"],
-    default: "available"
+const productSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    quantity: { type: Number, default: 0 },
+    price: { type: Number, required: true },
+    originalPrice: { type: Number }, // for Reports
+    sellingPrice: { type: Number },  // for Reports
+    prImg: String,
+    status: { type: String, default: "available" },
+    category: String,
+    deleted: { type: Boolean, default: false },
+    deletedAt: Date,
   },
-  category: { type: String, required: true },
-  deleted: { type: Boolean, default: false }, // soft delete flag
-  deletedAt: { type: Date } // optional: track deletion date
-});
+  { timestamps: true }
+);
 
-// Middleware: update status based on quantity
-productSchema.pre("save", function(next){
+// Auto status update
+productSchema.pre("save", function (next) {
   this.status = this.quantity > 0 ? "available" : "out of stock";
   next();
 });
 
-productSchema.pre("updateOne", function(next) {
-  const update = this.getUpdate();
-  const quantity = update.$set?.quantity;
-
-  if (quantity !== undefined) {
-    update.$set.status = quantity > 0 ? "available" : "out of stock";
-    this.setUpdate(update);
+productSchema.pre("updateOne", function (next) {
+  const update = this.getUpdate().$set || {};
+  if (update.quantity !== undefined) {
+    update.status = update.quantity > 0 ? "available" : "out of stock";
   }
-
   next();
 });
 

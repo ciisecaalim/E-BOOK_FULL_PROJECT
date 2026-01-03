@@ -4,19 +4,29 @@ import { toast } from "react-toastify";
 import { FiRefreshCw, FiTrash2, FiPlus } from "react-icons/fi";
 
 function AddCategory() {
-  const [tab, setTab] = useState("add"); // "add" or "recycle"
+  const [tab, setTab] = useState("add");
   const [name, setName] = useState("");
   const [categories, setCategories] = useState([]);
   const [deleted, setDeleted] = useState([]);
 
+  const API = "http://localhost:3000/api/categories";
+
   const fetchCategories = async () => {
-    const res = await axios.get("http://localhost:3000/api/categories/all");
-    setCategories(res.data);
+    try {
+      const res = await axios.get(`${API}/read`);
+      setCategories(res.data);
+    } catch {
+      toast.error("Failed to load categories");
+    }
   };
 
   const fetchDeleted = async () => {
-    const res = await axios.get("http://localhost:3000/api/categories/deleted");
-    setDeleted(res.data);
+    try {
+      const res = await axios.get(`${API}/deleted`);
+      setDeleted(res.data);
+    } catch {
+      toast.error("Failed to load deleted categories");
+    }
   };
 
   useEffect(() => {
@@ -24,37 +34,36 @@ function AddCategory() {
     fetchDeleted();
   }, []);
 
-  // Add new category
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!name.trim()) return toast.error("Category name required");
+
     try {
-      await axios.post("http://localhost:3000/api/categories/create", { name });
+      await axios.post(`${API}/create`, { name });
       toast.success("Category added");
       setName("");
       fetchCategories();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to add category");
+      toast.error(err.response?.data?.message || "Failed to add");
     }
   };
 
-  // Move to recycle bin
   const handleDelete = async (id) => {
     if (!window.confirm("Move to recycle bin?")) return;
+
     try {
-      await axios.delete(`http://localhost:3000/api/categories/delete/${id}`);
+      await axios.delete(`${API}/delete/${id}`);
       toast.success("Moved to recycle bin");
       fetchCategories();
       fetchDeleted();
     } catch {
-      toast.error("Failed to delete");
+      toast.error("Delete failed");
     }
   };
 
-  // Restore from recycle bin
   const handleRestore = async (id) => {
     try {
-      await axios.put(`http://localhost:3000/api/categories/restore/${id}`);
+      await axios.put(`${API}/restore/${id}`);
       toast.success("Category restored");
       fetchCategories();
       fetchDeleted();
@@ -63,43 +72,44 @@ function AddCategory() {
     }
   };
 
-  // Permanent delete
   const handlePermanentDelete = async (id) => {
-    if (!window.confirm("Permanently delete this category?")) return;
+    if (!window.confirm("DELETE forever?")) return;
+
     try {
-      await axios.delete(`http://localhost:3000/api/categories/permanent/${id}`);
-      toast.success("Category permanently deleted");
+      await axios.delete(`${API}/permanent/${id}`);
+      toast.success("Category deleted forever");
       fetchDeleted();
     } catch {
-      toast.error("Delete failed");
+      toast.error("Permanent delete failed");
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-gradient-to-br from-white/90 to-orange-50 rounded-2xl shadow-xl space-y-6 border border-orange-200">
-      <h2 className="text-3xl font-extrabold text-orange-600 text-center tracking-wide">
+    <div className="max-w-2xl mx-auto p-6 bg-orange-50 rounded-xl shadow space-y-6">
+      <h2 className="text-3xl font-bold text-orange-600 text-center">
         Category Manager
       </h2>
 
       {/* Tabs */}
-      <div className="flex justify-center gap-4 mb-4">
+      <div className="flex justify-center gap-4">
         <button
           onClick={() => setTab("add")}
-          className={`px-4 py-2 rounded-lg font-semibold transition ${
+          className={`px-4 py-2 rounded-lg font-semibold ${
             tab === "add"
-              ? "bg-orange-500 text-white shadow-lg"
-              : "bg-white text-orange-600 border border-orange-300 hover:bg-orange-100"
+              ? "bg-orange-500 text-white"
+              : "bg-white border border-orange-300"
           }`}
         >
           <FiPlus className="inline mr-1" />
           Add
         </button>
+
         <button
           onClick={() => setTab("recycle")}
-          className={`px-4 py-2 rounded-lg font-semibold transition ${
+          className={`px-4 py-2 rounded-lg font-semibold ${
             tab === "recycle"
-              ? "bg-green-500 text-white shadow-lg"
-              : "bg-white text-green-600 border border-green-300 hover:bg-green-100"
+              ? "bg-green-500 text-white"
+              : "bg-white border border-green-300"
           }`}
         >
           <FiRefreshCw className="inline mr-1" />
@@ -107,7 +117,7 @@ function AddCategory() {
         </button>
       </div>
 
-      {/* Add Category Tab */}
+      {/* Add Category */}
       {tab === "add" && (
         <div className="space-y-4">
           <form onSubmit={handleAdd} className="flex gap-2">
@@ -116,12 +126,10 @@ function AddCategory() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="New category"
-              className="flex-1 p-2 border rounded shadow-sm"
+              className="flex-1 p-2 border rounded"
             />
-            <button
-              type="submit"
-              className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 flex items-center gap-1"
-            >
+
+            <button className="bg-orange-500 text-white px-4 py-2 rounded-lg flex items-center gap-1">
               <FiPlus /> Add
             </button>
           </form>
@@ -130,12 +138,13 @@ function AddCategory() {
             {categories.map((cat) => (
               <li
                 key={cat._id}
-                className="flex justify-between items-center p-3 bg-white rounded-xl shadow hover:shadow-lg transition border border-orange-100"
+                className="flex justify-between items-center p-3 bg-white rounded-xl border"
               >
-                <span className="font-medium text-orange-700">{cat.name}</span>
+                <span className="font-medium">{cat.name}</span>
+
                 <button
                   onClick={() => handleDelete(cat._id)}
-                  className="flex items-center gap-1 bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 hover:scale-105 transition transform"
+                  className="bg-red-500 text-white px-3 py-1 rounded-lg flex items-center gap-1"
                 >
                   <FiTrash2 /> Delete
                 </button>
@@ -145,36 +154,37 @@ function AddCategory() {
         </div>
       )}
 
-      {/* Recycle Bin Tab */}
+      {/* Recycle Bin */}
       {tab === "recycle" && (
         <div className="space-y-3">
           {deleted.length === 0 && (
-            <p className="text-center text-gray-400 mt-4">No deleted categories</p>
+            <p className="text-center text-gray-500">No deleted categories</p>
           )}
-          <ul className="space-y-3">
-            {deleted.map((cat) => (
-              <li
-                key={cat._id}
-                className="flex justify-between items-center p-3 bg-white rounded-xl shadow hover:shadow-lg transition border border-green-100"
-              >
-                <span className="font-medium text-green-700">{cat.name}</span>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleRestore(cat._id)}
-                    className="flex items-center gap-1 bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 hover:scale-105 transition transform"
-                  >
-                    <FiRefreshCw /> Restore
-                  </button>
-                  <button
-                    onClick={() => handlePermanentDelete(cat._id)}
-                    className="flex items-center gap-1 bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 hover:scale-105 transition transform"
-                  >
-                    <FiTrash2 /> Delete
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+
+          {deleted.map((cat) => (
+            <li
+              key={cat._id}
+              className="flex justify-between items-center p-3 bg-white rounded-xl border"
+            >
+              <span className="font-medium text-green-700">{cat.name}</span>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleRestore(cat._id)}
+                  className="bg-green-500 text-white px-3 py-1 rounded-lg flex items-center gap-1"
+                >
+                  <FiRefreshCw /> Restore
+                </button>
+
+                <button
+                  onClick={() => handlePermanentDelete(cat._id)}
+                  className="bg-red-500 text-white px-3 py-1 rounded-lg flex items-center gap-1"
+                >
+                  <FiTrash2 /> Delete
+                </button>
+              </div>
+            </li>
+          ))}
         </div>
       )}
     </div>

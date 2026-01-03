@@ -5,20 +5,32 @@ import { Link, useLocation } from "react-router-dom";
 function HeaderBookStore() {
   const GetCustomer = localStorage.getItem("customer");
   const customer = GetCustomer ? JSON.parse(GetCustomer) : null;
-  const [cartCount, setCartCount] = useState(0);
+
+  const [cartCount, setCartCount] = useState(
+    JSON.parse(localStorage.getItem("product"))?.length || 0
+  );
 
   const location = useLocation();
 
   useEffect(() => {
     const updateCart = () => {
       const stored = JSON.parse(localStorage.getItem("product")) || [];
-      setCartCount(stored.length); // only unique items
+      setCartCount(stored.length);
     };
+
+    // update on page load
     updateCart();
 
-    // Listen to localStorage changes
+    // Listen for cart updates from BookCard
+    window.addEventListener("cartUpdated", updateCart);
+
+    // Listen for storage changes (other tabs)
     window.addEventListener("storage", updateCart);
-    return () => window.removeEventListener("storage", updateCart);
+
+    return () => {
+      window.removeEventListener("cartUpdated", updateCart);
+      window.removeEventListener("storage", updateCart);
+    };
   }, []);
 
   const handleLogOut = () => {
@@ -89,7 +101,6 @@ function HeaderBookStore() {
             </div>
           )}
 
-          {/* Cart button */}
           <Link to="/CartPage">
             <button className="relative flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-full text-sm font-medium shadow hover:bg-green-700 transition">
               <FaShoppingCart />

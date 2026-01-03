@@ -26,6 +26,7 @@ import AddCategory from "./components/AddCategory";
 import RecycleBin from "./components/RecycleBin";
 import ContactUs from "./components/contuct";
 import ContactsDashboard from "./components/contactbackend";
+import CategoryList from "./components/CategoryList";
  
 
 function App() {
@@ -65,6 +66,7 @@ function App() {
           <Route path="AddCategory" element={<AddCategory />} />
           <Route path="add-book" element={<BookForm />} />
           <Route path="customers" element={<CustomerTable />} />
+          <Route path="CategoryList" element={<CategoryList />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
