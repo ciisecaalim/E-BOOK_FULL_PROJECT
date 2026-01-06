@@ -27,7 +27,7 @@ exports.getCategories = async (req, res) => {
   }
 };
 
-// GET DELETED CATEGORIES (Recycle Bin)
+// GET DELETED CATEGORIES
 exports.getDeletedCategories = async (req, res) => {
   try {
     const deleted = await Category.find({ isDeleted: true }).sort({ name: 1 });

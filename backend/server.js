@@ -1,173 +1,62 @@
-import axios from "axios";
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import express from "express";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import cors from "cors";
+import fs from "fs";
+import path from "path";
 
-function UpdateBookForm() {
-  const [name, setName] = useState("");
-  const [img, setImage] = useState(null); // can be string (existing) or File (new)
-  const [quantity, setQuantity] = useState("");
-  const [price, setPrice] = useState("");
-  const [category, setCategory] = useState("");
+// Routes
+import adminRoutes from "./router/adminRouter.js";
+import categoryRoutes from "./router/categoryRouter.js";
+import contactRoutes from "./router/contactRoutes.js";
+import customerRoutes from "./router/customerRouter.js";
+import orderRoutes from "./router/orderRoutes.js";
+import productRoutes from "./router/productRouter.js";
+import userRoutes from "./router/useRouter.js";
 
-  const params = useParams();
-  const navigate = useNavigate();
+dotenv.config();
 
-  // Fetch single product
-  const fetchSingleProduct = async () => {
-    try {
-      const res = await axios.get(`http://localhost:3000/api/products/single/${params.id}`);
-      const product = res.data;
+const app = express();
 
-      setName(product.name || "");
-      setQuantity(product.quantity || 0);
-      setPrice(product.price || 0);
-      setCategory(product.category || "");
-      setImage(product.prImg || null);
-    } catch (err) {
-      console.error("Failed to fetch product:", err);
-      alert("Failed to load product data");
-    }
-  };
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-  // Update product
-  const handleUpdate = async (e) => {
-    e.preventDefault();
+// Uploads folder
+const uploadDir = "uploads";
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-    try {
-      const formData = new FormData();
-      formData.append("name", name);
-      formData.append("quantity", quantity);
-      formData.append("price", price);
-      formData.append("category", category);
+// Serve static files
+app.use("/uploads", express.static(path.join(path.resolve(), "uploads")));
 
-      // Only append if user selected new image
-      if (img && typeof img !== "string") {
-        formData.append("img", img);
-      }
+// Routes
+app.use("/api/admin", adminRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/contacts", contactRoutes);
+app.use("/api/customers", customerRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/users", userRoutes);
 
-      // Attach admin token
-      const token = JSON.parse(localStorage.getItem("admin"))?.token;
+// Root route
+app.get("/", (req, res) => res.send("Welcome to BookMart Backend API"));
 
-      await axios.put(
-        `http://localhost:3000/api/products/update/${params.id}`,
-        formData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+// All images route
+app.get("/api/allImg", (req, res) => {
+  fs.readdir(uploadDir, (err, files) => {
+    if (err) return res.status(500).json({ message: "Cannot read uploads folder", error: err });
 
-      alert("Product updated successfully!");
-      navigate("/dash/books");
-    } catch (err) {
-      console.error("Update failed:", err);
-      alert("Failed to update product");
-    }
-  };
+    const allImg = files.filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file));
+    res.json({ allImg });
+  });
+});
 
-  useEffect(() => {
-    fetchSingleProduct();
-  }, []);
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URL)
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.error("MongoDB connection error:", err));
 
-  return (
-    <div className="max-w-lg mx-auto mt-10">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate("/dash/books")}
-        className="flex items-center gap-2 mb-6 px-4 py-2 bg-white shadow-sm rounded-full border hover:bg-gray-100 transition"
-      >
-        <span className="text-xl">←</span>
-        <span className="font-medium text-gray-700">Back</span>
-      </button>
-
-      <form
-        onSubmit={handleUpdate}
-        className="p-6 bg-white rounded-2xl shadow-xl space-y-4 border"
-      >
-        <h2 className="text-2xl font-bold text-center mb-4 text-orange-600">Update Book</h2>
-
-        {/* Name */}
-        <div>
-          <label className="block mb-1 font-medium">Product Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full border border-gray-300 rounded-lg p-2"
-          />
-        </div>
-
-        {/* Quantity */}
-        <div>
-          <label className="block mb-1 font-medium">Quantity</label>
-          <input
-            type="number"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            required
-            className="w-full border border-gray-300 rounded-lg p-2"
-          />
-        </div>
-
-        {/* Price */}
-        <div>
-          <label className="block mb-1 font-medium">Price</label>
-          <input
-            type="number"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            required
-            className="w-full border border-gray-300 rounded-lg p-2"
-          />
-        </div>
-
-        {/* Category */}
-        <div>
-          <label className="block mb-1 font-medium">Category</label>
-          <input
-            type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            required
-            className="w-full border border-gray-300 rounded-lg p-2"
-          />
-        </div>
-
-        {/* Image */}
-        <div>
-          <label className="block mb-1 font-medium">Image</label>
-          <input
-            type="file"
-            accept="image/*"
-            className="w-full border border-gray-300 rounded-lg p-2"
-            onChange={(e) => setImage(e.target.files[0])}
-          />
-
-          {img && typeof img === "string" && (
-            <img
-              src={`http://localhost:3000/allImg/${img}`} // serve from /allImg or /uploads
-              alt="Preview"
-              className="w-40 mt-3 rounded-xl shadow"
-            />
-          )}
-
-          {img && typeof img !== "string" && (
-            <img
-              src={URL.createObjectURL(img)}
-              alt="Preview"
-              className="w-40 mt-3 rounded-xl shadow"
-            />
-          )}
-        </div>
-
-        {/* Submit */}
-        <button
-          type="submit"
-          className="w-full bg-orange-500 text-white p-2 rounded-lg hover:bg-orange-600 font-semibold"
-        >
-          Update Book
-        </button>
-      </form>
-    </div>
-  );
-}
-
-export default UpdateBookForm;
+// Start server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

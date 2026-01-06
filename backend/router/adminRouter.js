@@ -1,6 +1,6 @@
-const express = require("express");
-const multer = require("multer");
-const { createAdmin, adminLogin, getAdminProfile, updateAdminProfile } = require("../controller/adminController");
+import express from "express";
+import multer from "multer";
+import { createAdmin, adminLogin, getAdminProfile, updateAdminProfile } from "../controller/adminController.js";
 
 const router = express.Router();
 
@@ -17,4 +17,5 @@ router.post("/login", adminLogin);
 router.get("/profile/public", getAdminProfile);
 router.put("/profile/public", upload.single("avatar"), updateAdminProfile);
 
-module.exports = router;
+// ES Module export
+export default router;

@@ -14,7 +14,6 @@ const API = axios.create({
   baseURL: "http://localhost:3000/api/products",
 });
 
-// Attach JWT automatically from localStorage admin token
 API.interceptors.request.use((config) => {
   const admin = JSON.parse(localStorage.getItem("admin"));
   const token = admin?.token;
@@ -25,6 +24,7 @@ API.interceptors.request.use((config) => {
 /* ================= COMPONENT ================= */
 function BookTable() {
   const [books, setBooks] = useState([]);
+  const [categories, setCategories] = useState([]); // {_id, name}
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
@@ -35,6 +35,16 @@ function BookTable() {
   const [selectedBooks, setSelectedBooks] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
+  /* ================= FETCH CATEGORIES ================= */
+  const fetchCategories = async () => {
+    try {
+      const res = await axios.get("http://localhost:3000/api/categories/read");
+      setCategories(res.data); // [{_id, name}]
+    } catch (err) {
+      toast.error("Failed to fetch categories");
+    }
+  };
+
   /* ================= FETCH BOOKS ================= */
   const fetchBooks = async () => {
     setLoading(true);
@@ -43,13 +53,14 @@ function BookTable() {
       setBooks(res.data || []);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to fetch books. Make sure you are logged in as admin.");
+      toast.error("Failed to fetch books");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    fetchCategories();
     fetchBooks();
   }, []);
 
@@ -68,54 +79,64 @@ function BookTable() {
   const totalValue = books.reduce((s, b) => s + Number(b.quantity || 0) * Number(b.price || 0), 0);
   const highestPrice = Math.max(...books.map((b) => Number(b.price || 0)), 0);
   const lowestStockBook = books.reduce((min, b) => (b.quantity < min.quantity ? b : min), books[0] || { quantity: 0 });
+
   const categoryCounts = books.reduce((acc, b) => {
-    const c = b.category || "Uncategorized";
-    acc[c] = (acc[c] || 0) + 1;
+    const catName = categories.find(c => c._id === b.category)?.name || "Uncategorized";
+    acc[catName] = (acc[catName] || 0) + 1;
     return acc;
   }, {});
-  const categories = Object.keys(categoryCounts);
+  const categoryNames = Object.keys(categoryCounts);
 
   /* ================= FILTER & SORT ================= */
   let filteredBooks = books;
-  if (filterCategories.length) filteredBooks = filteredBooks.filter((b) => filterCategories.includes(b.category || "Uncategorized"));
-  if (lowStockOnly) filteredBooks = filteredBooks.filter((b) => b.quantity < 5 && b.quantity > 0);
+  if(filterCategories.length){
+    filteredBooks = filteredBooks.filter(b => {
+      const catName = categories.find(c => c._id === b.category)?.name || "Uncategorized";
+      return filterCategories.includes(catName);
+    });
+  }
+  if(lowStockOnly){
+    filteredBooks = filteredBooks.filter(b => b.quantity < 5 && b.quantity > 0);
+  }
 
-  const sortFields = { name: "name", qty: "quantity", price: "price", category: "category", status: "quantity" };
-  const sortedBooks = [...filteredBooks].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const field = sortFields[sortConfig.key];
-    const aVal = a[field] || "";
-    const bVal = b[field] || "";
-    if (sortConfig.direction === "asc") return aVal > bVal ? 1 : -1;
+  const sortFields = { name:"name", qty:"quantity", price:"price", category:"category", status:"quantity" };
+  const sortedBooks = [...filteredBooks].sort((a,b)=>{
+    if(!sortConfig.key) return 0;
+    let aVal = a[sortFields[sortConfig.key]];
+    let bVal = b[sortFields[sortConfig.key]];
+    if(sortConfig.key === "category"){
+      aVal = categories.find(c=>c._id===aVal)?.name || "Uncategorized";
+      bVal = categories.find(c=>c._id===bVal)?.name || "Uncategorized";
+    }
+    if(sortConfig.direction==="asc") return aVal > bVal ? 1 : -1;
     return aVal < bVal ? 1 : -1;
   });
 
   /* ================= PAGINATION ================= */
   const totalPages = Math.ceil(sortedBooks.length / limit);
-  const currentBooks = sortedBooks.slice(page * limit, page * limit + limit);
+  const currentBooks = sortedBooks.slice(page*limit, page*limit + limit);
 
   /* ================= SEARCH ================= */
   const searchData = (e) => {
     const key = e.target.value.toLowerCase();
-    if (!key) return fetchBooks();
-    setBooks((prev) =>
-      prev.filter((b) =>
-        [b.name, b.category, b.quantity, b.price].map(String).some((v) => v.toLowerCase().includes(key))
-      )
-    );
+    if(!key) return fetchBooks();
+    setBooks(prev => prev.filter(b=>{
+      const catName = categories.find(c=>c._id===b.category)?.name || "Uncategorized";
+      return [b.name, catName, b.quantity, b.price].map(String).some(v=>v.toLowerCase().includes(key));
+    }));
   };
 
   /* ================= DELETE SINGLE ================= */
   const deleteProduct = async (id) => {
     setLoading(true);
-    try {
+    try{
       await API.delete(`/delete/${id}`);
       toast.success("Deleted successfully!");
       fetchBooks();
-    } catch (err) {
+    }catch(err){
       console.error(err);
-      toast.error("Failed to delete. Check admin role.");
-    } finally {
+      toast.error("Failed to delete book");
+    }finally{
       setLoading(false);
       setConfirmDelete(null);
     }
@@ -123,25 +144,25 @@ function BookTable() {
 
   /* ================= BULK DELETE ================= */
   const bulkDelete = async () => {
-    if (!selectedBooks.length) return;
+    if(!selectedBooks.length) return;
     setLoading(true);
-    try {
-      await Promise.all(selectedBooks.map((id) => API.delete(`/delete/${id}`)));
+    try{
+      await Promise.all(selectedBooks.map(id=>API.delete(`/delete/${id}`)));
       toast.success("Selected books deleted!");
       setSelectedBooks([]);
       fetchBooks();
-    } catch (err) {
+    }catch(err){
       console.error(err);
-      toast.error("Failed to delete selected books.");
-    } finally {
+      toast.error("Failed to delete selected books");
+    }finally{
       setLoading(false);
     }
   };
 
   /* ================= EXPORT CSV ================= */
   const exportCSV = () => {
-    const rows = [["Name", "Category", "Quantity", "Price"], ...books.map((b) => [b.name, b.category, b.quantity, b.price])];
-    const csv = "data:text/csv;charset=utf-8," + rows.map((r) => r.join(",")).join("\n");
+    const rows = [["Name","Category","Quantity","Price"], ...books.map(b=>[b.name,categories.find(c=>c._id===b.category)?.name || "Uncategorized",b.quantity,b.price])];
+    const csv = "data:text/csv;charset=utf-8," + rows.map(r=>r.join(",")).join("\n");
     const a = document.createElement("a");
     a.href = encodeURI(csv);
     a.download = "books.csv";
@@ -149,13 +170,11 @@ function BookTable() {
     toast.success("CSV exported!");
   };
 
-  /* ================= SORT BUTTON ================= */
-  const handleSort = (key) => {
-    if (sortConfig.key === key) setSortConfig({ key, direction: sortConfig.direction === "asc" ? "desc" : "asc" });
-    else setSortConfig({ key, direction: "asc" });
+  const handleSort = key => {
+    if(sortConfig.key===key) setSortConfig({key, direction:sortConfig.direction==="asc"?"desc":"asc"});
+    else setSortConfig({key, direction:"asc"});
   };
 
-  /* ================= RENDER ================= */
   return (
     <div className="space-y-8 relative">
       {loading && <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"><div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div></div>}
@@ -178,29 +197,25 @@ function BookTable() {
           ["Total Value", `$${totalValue.toFixed(2)}`],
           ["Highest Price", `$${highestPrice}`],
           ["Lowest Stock Book", lowestStockBook?.name],
-          ["Categories", categories.length],
-        ].map(([label, value]) => (
+          ["Categories", categoryNames.length]
+        ].map(([label,value])=>(
           <div key={label} className="bg-white p-6 rounded-2xl shadow border-l-4 border-blue-600">
             <p className="text-gray-500">{label}</p>
-            <p className="text-2xl font-bold mt-2">{typeof value === "number" ? <CountUp end={value} /> : value}</p>
+            <p className="text-2xl font-bold mt-2">{typeof value==="number"?<CountUp end={value}/> : value}</p>
           </div>
         ))}
       </div>
 
       {/* FILTERS */}
       <div className="flex flex-wrap gap-4 items-center">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setFilterCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])}
-            className={`px-3 py-1 rounded-full text-sm ${filterCategories.includes(cat) ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-          >{cat}</button>
+        {categoryNames.map(cat=>(
+          <button key={cat} onClick={()=>setFilterCategories(prev=>prev.includes(cat)?prev.filter(c=>c!==cat):[...prev,cat])} className={`px-3 py-1 rounded-full text-sm ${filterCategories.includes(cat)?"bg-blue-600 text-white":"bg-gray-100"}`}>{cat}</button>
         ))}
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={lowStockOnly} onChange={() => setLowStockOnly(!lowStockOnly)} />
+          <input type="checkbox" checked={lowStockOnly} onChange={()=>setLowStockOnly(!lowStockOnly)} />
           Low Stock Only
         </label>
-        {selectedBooks.length > 0 && <button onClick={bulkDelete} className="px-3 py-2 bg-red-600 text-white rounded-lg flex items-center gap-2"><FaTrash /> Delete Selected</button>}
+        {selectedBooks.length>0 && <button onClick={bulkDelete} className="px-3 py-2 bg-red-600 text-white rounded-lg flex items-center gap-2"><FaTrash /> Delete Selected</button>}
       </div>
 
       {/* TABLE */}
@@ -209,38 +224,33 @@ function BookTable() {
           <thead className="bg-blue-100 text-blue-900">
             <tr>
               <th className="p-3">
-                <input
-                  type="checkbox"
-                  checked={currentBooks.length && selectedBooks.length === currentBooks.length}
-                  onChange={(e) => setSelectedBooks(e.target.checked ? currentBooks.map(b => b._id) : [])}
-                />
+                <input type="checkbox" checked={currentBooks.length && selectedBooks.length===currentBooks.length} onChange={e=>setSelectedBooks(e.target.checked?currentBooks.map(b=>b._id):[])} />
               </th>
-              {[["Image",""],["Name","name"],["Qty","qty"],["Price","price"],["Category","category"],["Status","status"],["Actions",""]].map(([label,key]) => (
-                <th key={label} className="p-3 cursor-pointer" onClick={() => key && handleSort(key)}>
+              {[["Image",""],["Name","name"],["Qty","qty"],["Price","price"],["Category","category"],["Status","status"],["Actions",""]].map(([label,key])=>(
+                <th key={label} className="p-3 cursor-pointer" onClick={()=>key&&handleSort(key)}>
                   <div className="flex items-center justify-center gap-1">
-                    {label}
-                    {sortConfig.key === key ? (sortConfig.direction==="asc"?<FaSortUp />:<FaSortDown />) : key && <FaSort />}
+                    {label}{sortConfig.key===key?(sortConfig.direction==="asc"?<FaSortUp />:<FaSortDown />):key&&<FaSort />}
                   </div>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {currentBooks.length ? currentBooks.map(book=>(
+            {currentBooks.length?currentBooks.map(book=>(
               <tr key={book._id} className={`${book.quantity===0?"bg-red-50":book.quantity<5?"bg-amber-50":""}`}>
-                <td><input type="checkbox" checked={selectedBooks.includes(book._id)} onChange={(e)=>setSelectedBooks(prev=>e.target.checked?[...prev,book._id]:prev.filter(id=>id!==book._id))}/></td>
-                <td><img onClick={()=>setViewImage(`http://localhost:3000/uploads/${book.prImg}`)} src={`http://localhost:3000/uploads/${book.prImg}`} className="w-14 h-14 rounded-lg mx-auto cursor-pointer"/></td>
+                <td><input type="checkbox" checked={selectedBooks.includes(book._id)} onChange={e=>setSelectedBooks(prev=>e.target.checked?[...prev,book._id]:prev.filter(id=>id!==book._id))} /></td>
+                <td><img onClick={()=>setViewImage(`http://localhost:3000/uploads/${book.prImg}`)} src={`http://localhost:3000/uploads/${book.prImg}`} className="w-14 h-14 rounded-lg mx-auto cursor-pointer" /></td>
                 <td>{book.name}</td>
                 <td>{book.quantity}</td>
                 <td>${book.price}</td>
-                <td>{book.category}</td>
+                <td>{categories.find(c=>c._id===book.category)?.name || "Uncategorized"}</td>
                 <td>{book.quantity===0?<FaTimesCircle className="text-red-600"/>:book.quantity<5?<FaExclamationTriangle className="text-amber-600"/>:<FaCheckCircle className="text-green-600"/>}</td>
                 <td className="space-x-3">
                   <Link to={`/update/book/${book._id}`}><i className="fa-solid fa-pen-to-square text-blue-600"></i></Link>
                   <i onClick={()=>setConfirmDelete(book._id)} className="fa-solid fa-trash text-red-600 cursor-pointer"></i>
                 </td>
               </tr>
-            )) : <tr><td colSpan="8" className="p-10 text-gray-500">No books found.</td></tr>}
+            )):<tr><td colSpan="8" className="p-10 text-gray-500">No books found.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -249,7 +259,7 @@ function BookTable() {
       <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow">
         <div className="flex items-center gap-2">
           <label>Books per page:</label>
-          <select value={limit} onChange={(e)=>{setLimit(Number(e.target.value)); setPage(0)}} className="border px-2 py-1 rounded">{[10,20,50,100].map(n=><option key={n} value={n}>{n}</option>)}</select>
+          <select value={limit} onChange={e=>{setLimit(Number(e.target.value)); setPage(0)}} className="border px-2 py-1 rounded">{[10,20,50,100].map(n=><option key={n} value={n}>{n}</option>)}</select>
         </div>
         <div className="flex items-center gap-2">
           <button disabled={page===0} onClick={()=>setPage(p=>p-1)} className={`px-3 py-1 rounded ${page===0?"bg-gray-300":"bg-blue-600 text-white"}`}>Prev</button>

@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 function BookForm() {
   const navigate = useNavigate();
 
+  // Form state
   const [name, setName] = useState("");
   const [img, setImg] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -16,37 +17,37 @@ function BookForm() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
+  // Get admin data from localStorage
+  const adminData = JSON.parse(localStorage.getItem("admin")); // expects { token, user: {role,...} }
+  const token = adminData?.token || null;
+  const role = adminData?.user?.role || null;
+
   /* ================= FETCH CATEGORIES ================= */
   useEffect(() => {
+    if (role !== "admin") return; // only admin can fetch categories
+
     const fetchCategories = async () => {
       try {
-        const res = await axios.get(
-          "http://localhost:3000/api/products/categories"
-        );
-        setCategories(res.data);
+        const res = await axios.get("http://localhost:3000/api/categories/read", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setCategories(res.data); // expects array of { _id, name }
       } catch (err) {
         toast.error("Failed to fetch categories");
       }
     };
     fetchCategories();
-  }, []);
+  }, [role, token]);
 
   /* ================= VALIDATION ================= */
   const validate = () => {
     const err = {};
-
     if (!name.trim()) err.name = "Name is required";
-    else if (!/^[A-Za-z ]+$/.test(name))
-      err.name = "Letters only";
+    else if (!/^[A-Za-z ]+$/.test(name)) err.name = "Letters only";
 
-    if (!quantity || quantity <= 0)
-      err.quantity = "Quantity must be greater than 0";
-
-    if (!price || price <= 0)
-      err.price = "Price must be greater than 0";
-
+    if (!quantity || quantity <= 0) err.quantity = "Quantity must be greater than 0";
+    if (!price || price <= 0) err.price = "Price must be greater than 0";
     if (!category) err.category = "Select a category";
-
     if (!img) err.img = "Image is required";
 
     setErrors(err);
@@ -70,25 +71,37 @@ function BookForm() {
   /* ================= SUBMIT ================= */
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (role !== "admin") {
+      toast.error("Unauthorized! Only admin can add products.");
+      return;
+    }
+
     if (!validate()) return toast.error("Fix form errors");
 
     const formData = new FormData();
     formData.append("name", name);
     formData.append("quantity", quantity);
     formData.append("price", price);
-    formData.append("category", category);
-    formData.append("img", img); // 👈 backend expects "img"
+    formData.append("category", category); 
+    formData.append("img", img);
 
     setLoading(true);
     try {
-      await axios.post(
-        "http://localhost:3000/api/products/create",
-        formData
-      );
+      await axios.post("http://localhost:3000/api/products/create", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
+      });
       toast.success("Product added successfully");
       navigate("/dash");
     } catch (err) {
-      toast.error("Error creating product");
+      if (err.response && err.response.status === 401) {
+        toast.error("Unauthorized! Please login as admin.");
+      } else {
+        toast.error("Error creating product");
+      }
     } finally {
       setLoading(false);
     }
@@ -100,9 +113,7 @@ function BookForm() {
         onSubmit={handleSubmit}
         className="space-y-4 bg-white p-6 rounded-xl shadow"
       >
-        <h2 className="text-xl font-semibold text-gray-700">
-          Add New Product
-        </h2>
+        <h2 className="text-xl font-semibold text-gray-700">Add New Product</h2>
 
         {/* NAME */}
         <input
@@ -122,9 +133,7 @@ function BookForm() {
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
         />
-        {errors.quantity && (
-          <p className="text-red-500">{errors.quantity}</p>
-        )}
+        {errors.quantity && <p className="text-red-500">{errors.quantity}</p>}
 
         {/* PRICE */}
         <input
@@ -144,14 +153,12 @@ function BookForm() {
         >
           <option value="">Select Category</option>
           {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
+            <option key={c._id} value={c._id}>
+              {c.name}
             </option>
           ))}
         </select>
-        {errors.category && (
-          <p className="text-red-500">{errors.category}</p>
-        )}
+        {errors.category && <p className="text-red-500">{errors.category}</p>}
 
         {/* IMAGE */}
         <input type="file" accept="image/*" onChange={handleImage} />
@@ -166,7 +173,7 @@ function BookForm() {
 
         {/* SUBMIT */}
         <button
-          disabled={loading}
+          disabled={loading || role !== "admin"}
           className="bg-blue-600 text-white px-6 py-2 rounded-lg w-full"
         >
           {loading ? "Saving..." : "Save"}

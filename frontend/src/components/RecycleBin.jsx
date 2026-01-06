@@ -1,32 +1,52 @@
 import axios from "axios";
 import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { FiRefreshCw, FiTrash2 } from "react-icons/fi"; // Icons
+import { FiRefreshCw, FiTrash2 } from "react-icons/fi";
 
 function RecycleBin() {
   const [deletedBooks, setDeletedBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Get admin info from localStorage
+  const adminData = JSON.parse(localStorage.getItem("admin") || "{}");
+  const token = adminData.token || null;
+  const role = adminData.user?.role || null;
+
+  // Role check: only admin
+  useEffect(() => {
+    if (!token || role !== "admin") {
+      toast.error("Unauthorized access. Admin only.");
+      setLoading(false);
+      return;
+    }
+    fetchDeletedBooks();
+  }, [token, role]);
 
   // Fetch all soft-deleted books
   const fetchDeletedBooks = async () => {
     try {
-      const res = await axios.get("http://localhost:3000/api/products/deleted/products");
+      const res = await axios.get("http://localhost:3000/api/products/deleted", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setDeletedBooks(res.data);
     } catch (error) {
+      console.error(error);
       toast.error("Failed to fetch deleted books");
+    } finally {
+      setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchDeletedBooks();
-  }, []);
 
   // Restore a deleted book
   const handleRestore = async (id) => {
     try {
-      await axios.put(`http://localhost:3000/api/products/restore/product/${id}`);
+      await axios.put(`http://localhost:3000/api/products/restore/${id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       toast.success("Book restored successfully");
       fetchDeletedBooks();
     } catch (error) {
+      console.error(error);
       toast.error("Restore failed");
     }
   };
@@ -35,13 +55,18 @@ function RecycleBin() {
   const handlePermanentDelete = async (id) => {
     if (!window.confirm("Permanently delete this book?")) return;
     try {
-      await axios.delete(`http://localhost:3000/api/products/permanent/product/${id}`);
+      await axios.delete(`http://localhost:3000/api/products/permanent/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       toast.success("Book permanently deleted");
       fetchDeletedBooks();
     } catch (error) {
+      console.error(error);
       toast.error("Delete failed");
     }
   };
+
+  if (loading) return <p className="text-center mt-10">Loading...</p>;
 
   return (
     <div className="max-w-3xl mx-auto p-6 bg-gradient-to-br from-white/90 to-blue-50 rounded-2xl shadow-xl space-y-6 border border-blue-200">
@@ -60,7 +85,11 @@ function RecycleBin() {
             >
               <div className="flex items-center gap-4">
                 <img
-                  src={`http://localhost:3000/allImg/${book.prImg}`}
+                  src={
+                    book.prImg
+                      ? `http://localhost:3000/uploads/${book.prImg}`
+                      : "/placeholder.png"
+                  }
                   alt={book.name}
                   className="w-16 h-16 rounded-lg object-cover"
                 />

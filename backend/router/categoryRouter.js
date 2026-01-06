@@ -2,10 +2,10 @@ const express = require("express");
 const router = express.Router();
 const categoryController = require("../controller/categoryController");
 
-// Create a category
+// Create category
 router.post("/create", categoryController.createCategory);
 
-// ✅ Get all active categories (this will match your frontend)
+// Get all active categories
 router.get("/read", categoryController.getCategories);
 
 // Get deleted categories
