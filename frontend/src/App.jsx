@@ -27,7 +27,12 @@ import RecycleBin from "./components/RecycleBin";
 import ContactUs from "./components/contuct";
 import ContactsDashboard from "./components/contactbackend";
 import CategoryList from "./components/CategoryList";
- 
+
+// ✅ New imports for orders & payment
+import OrderHistory from "./components/OrderHistory";
+import InvoicePDF from "./components/InvoicePDF";
+import StripePayment from "./components/StripePayment";
+import PayPalPayment from "./components/PayPalPayment";
 
 function App() {
   return (
@@ -37,7 +42,6 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/AboutUs" element={<AboutUs />} />
         <Route path="/ContactUs" element={<ContactUs />} />
-        <Route path="/ContactUs" element={<ContactUs />} />
         <Route path="/admin" element={<AdminRegister />} />
         <Route path="/CategoryPage" element={<CategoryPage />} />
         <Route path="/CartPage" element={<CartPage />} />
@@ -46,6 +50,12 @@ function App() {
         <Route path="/update/book/:id" element={<UpdateBookForm />} />
         <Route path="/update/customer/:id" element={<CustomerUpdateForm />} />
         <Route path="/loginDash" element={<LoginDash />} />
+
+        {/* Order pages */}
+        <Route path="/OrderHistory" element={<OrderHistory />} />
+        <Route path="/InvoicePDF/:id" element={<InvoicePDF />} />
+        <Route path="/StripePayment/:id" element={<StripePayment />} />
+        <Route path="/PayPalPayment/:id" element={<PayPalPayment />} />
 
         {/* Protected Admin Routes */}
         <Route

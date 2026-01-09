@@ -3,10 +3,8 @@ import { FaSearch } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 
 function BookCard() {
-  const navigate = useNavigate();
   const cartIconRef = useRef(null);
 
   const [data, setData] = useState([]);
@@ -16,126 +14,96 @@ function BookCard() {
   const [loading, setLoading] = useState(false);
   const [cartItems, setCartItems] = useState([]);
   const [flyItem, setFlyItem] = useState(null);
-  const [cartCount, setCartCount] = useState(0);
 
-  // --- FIX IMAGE PATH ---
+  /* ================= IMAGE FIX ================= */
   const fixImg = (img) => {
     if (!img) return "/no-image.png";
     if (img.startsWith("http")) return img;
     return `http://localhost:3000/uploads/${img}`;
   };
 
-  // --- LOAD CART AND PENDING ITEMS ---
+  /* ================= LOAD CART ================= */
   useEffect(() => {
-    let savedCart = JSON.parse(localStorage.getItem("product"));
-    let pendingItem = JSON.parse(localStorage.getItem("pendingItem"));
-
-    // Ensure they are arrays
-    if (!Array.isArray(savedCart)) savedCart = [];
-    if (!Array.isArray(pendingItem)) pendingItem = [];
-
-    let initialCart = [...savedCart];
-
-    const customer = JSON.parse(localStorage.getItem("customer"));
-    if (customer && pendingItem.length > 0) {
-      pendingItem.forEach((item) => {
-        if (!initialCart.find((c) => c._id === item._id)) {
-          initialCart.push({ ...item, quantity: item.quantity || 1 });
-        }
-      });
-      localStorage.removeItem("pendingItem");
-    }
-
-    setCartItems(initialCart);
-    setCartCount(initialCart.length);
-    localStorage.setItem("product", JSON.stringify(initialCart));
+    const savedCart = JSON.parse(localStorage.getItem("product")) || [];
+    setCartItems(savedCart);
   }, []);
 
-  // --- FETCH CATEGORIES ---
+  /* ================= FETCH CATEGORIES ================= */
   const fetchCategories = async () => {
     try {
-      const res = await axios.get("http://localhost:3000/api/products/categories/read");
-      setCategories(["All", ...res.data.map((c) => c.name)]);
-    } catch (error) {
-      console.error("Category error", error);
+      const res = await axios.get(
+        "http://localhost:3000/api/products/categories/read"
+      );
+      setCategories(["All", ...res.data]);
+    } catch {
       toast.error("Failed to load categories");
     }
   };
 
-  // --- FETCH PRODUCTS ---
+  /* ================= FETCH PRODUCTS ================= */
   const fetchData = async () => {
     setLoading(true);
     try {
       const q = category ? `?category=${category}` : "";
-      const res = await axios.get(`http://localhost:3000/api/products/read${q}`);
-      let products = res.data;
+      const res = await axios.get(
+        `http://localhost:3000/api/products/read${q}`
+      );
+
+      let products = res.data || [];
 
       if (search.trim()) {
         const key = search.toLowerCase();
-        products = products.filter((item) =>
-          item.name.toLowerCase().includes(key)
+        products = products.filter((p) =>
+          p.name.toLowerCase().includes(key)
         );
       }
 
       setData(products);
-    } catch (error) {
-      console.error("Product error", error);
+    } catch {
       toast.error("Failed to load products");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- INITIAL LOAD ---
+  /* ================= INITIAL LOAD ================= */
   useEffect(() => {
     fetchCategories();
     fetchData();
   }, []);
 
-  // --- REFETCH WHEN CATEGORY OR SEARCH ---
+  /* ================= RELOAD ON FILTER ================= */
   useEffect(() => {
     fetchData();
   }, [category, search]);
 
-  // --- ADD TO CART ---
+  /* ================= ADD TO CART (NO LOGIN) ================= */
   const handleAddToCart = (item, e) => {
-    const customer = JSON.parse(localStorage.getItem("customer"));
-
-    // Not logged in -> save pending
-    if (!customer) {
-      let pending = JSON.parse(localStorage.getItem("pendingItem")) || [];
-      if (!pending.find((p) => p._id === item._id)) {
-        pending.push({ ...item, quantity: 1 });
-        localStorage.setItem("pendingItem", JSON.stringify(pending));
-      }
-      toast.info("Please login first to add this item to your cart");
-      navigate("/CustomerLogin");
+    if (cartItems.find((c) => c._id === item._id)) {
+      toast.info("Already in cart");
       return;
     }
 
-    if (cartItems.find((c) => c._id === item._id)) {
-      toast.error("🚫 Already in cart");
+    if (item.status !== "available") {
+      toast.error("Out of stock");
       return;
     }
 
     const updatedCart = [...cartItems, { ...item, quantity: 1 }];
     setCartItems(updatedCart);
     localStorage.setItem("product", JSON.stringify(updatedCart));
-
-    // Trigger header/cart refresh
     window.dispatchEvent(new Event("cartUpdated"));
-    setCartCount(updatedCart.length);
 
-    // --- FLY TO CART ANIMATION ---
-    const rectButton = e.currentTarget.getBoundingClientRect();
+    /* ===== Fly to cart animation ===== */
+    const rectBtn = e.currentTarget.getBoundingClientRect();
     const rectCart = cartIconRef.current?.getBoundingClientRect() || {
       left: window.innerWidth - 60,
       top: 20,
     };
 
     setFlyItem({
-      x: rectButton.left,
-      y: rectButton.top,
+      x: rectBtn.left,
+      y: rectBtn.top,
       targetX: rectCart.left,
       targetY: rectCart.top,
       img: fixImg(item.prImg),
@@ -143,26 +111,29 @@ function BookCard() {
     });
 
     setTimeout(() => setFlyItem(null), 800);
-
-    toast.success("Added to cart!");
+    toast.success("Added to cart");
   };
 
   return (
     <div className="px-6 md:px-16 py-10 bg-gray-50 min-h-screen mt-20 relative">
-      {/* Fly-to-cart animation */}
+      {/* Fly animation */}
       <AnimatePresence>
         {flyItem && (
           <motion.img
             src={flyItem.img}
             initial={{ x: flyItem.x, y: flyItem.y, scale: 1 }}
-            animate={{ x: flyItem.targetX, y: flyItem.targetY, scale: 0.2 }}
+            animate={{
+              x: flyItem.targetX,
+              y: flyItem.targetY,
+              scale: 0.2,
+            }}
             transition={{ duration: 0.8 }}
             className="fixed w-16 h-20 rounded-lg z-50"
           />
         )}
       </AnimatePresence>
 
-      {/* Categories & Search */}
+      {/* FILTERS */}
       <div className="bg-white p-4 rounded-xl shadow flex flex-wrap gap-2 mb-6">
         {categories.map((c) => (
           <button
@@ -187,11 +158,12 @@ function BookCard() {
         </div>
       </div>
 
-      {/* Products Grid */}
+      {/* PRODUCTS */}
       {!loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {data.map((item) => {
             const inCart = cartItems.find((c) => c._id === item._id);
+
             return (
               <div
                 key={item._id}
@@ -199,12 +171,12 @@ function BookCard() {
               >
                 <img
                   src={fixImg(item.prImg)}
-                  onError={(e) => (e.target.src = "/no-image.png")}
                   alt={item.name}
+                  onError={(e) => (e.target.src = "/no-image.png")}
                   className="h-52 w-full object-cover rounded-lg"
                 />
 
-                <h2 className="font-semibold text-gray-800 mt-2">{item.name}</h2>
+                <h2 className="font-semibold mt-2">{item.name}</h2>
 
                 <p
                   className={`text-sm ${
@@ -217,7 +189,9 @@ function BookCard() {
                 </p>
 
                 <div className="flex justify-between items-center mt-3">
-                  <span className="text-yellow-600 font-bold">${item.price}</span>
+                  <span className="text-yellow-600 font-bold">
+                    ${item.price}
+                  </span>
 
                   <button
                     disabled={inCart}

@@ -11,13 +11,15 @@ const orderProductSchema = new mongoose.Schema({
 const orderSchema = new mongoose.Schema(
   {
     customer: { type: String, required: true },
-    email: String,
+    email: { type: String, required: true },
     phone: String,
     address: String,
     products: [orderProductSchema],
     totalAmount: { type: Number, required: true },
-    status: { type: String, default: "Processing" },
-    paymentStatus: { type: String, default: "Unpaid" },
+
+    status: { type: String, default: "Processing" }, // Processing | Completed
+    paymentStatus: { type: String, default: "Unpaid" }, // Unpaid | Paid
+    paymentMethod: { type: String }, // Stripe | PayPal | Cash
   },
   { timestamps: true }
 );

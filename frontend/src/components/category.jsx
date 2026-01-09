@@ -23,10 +23,11 @@ function CategoryPage() {
   /* ================= FETCH CATEGORIES ================= */
   const fetchCategories = async () => {
     try {
-      const res = await axios.get("http://localhost:3000/api/products/categories");
-      setCategories(["All", ...res.data, "Other"]);
-    } catch (err) {
-      console.error("Error fetching categories:", err.response || err.message);
+      const res = await axios.get(
+        "http://localhost:3000/api/products/categories/read"
+      );
+      setCategories(["All", ...res.data]);
+    } catch {
       toast.error("Failed to load categories");
     }
   };
@@ -35,26 +36,29 @@ function CategoryPage() {
   const fetchData = async () => {
     setLoading(true);
     setError("");
+
     try {
-      const res = await axios.post(
-        "http://localhost:3000/api/products/read/product",
-        { category: category || null }
+      const res = await axios.get(
+        "http://localhost:3000/api/products/read",
+        {
+          params: category ? { category } : {}
+        }
       );
+
       let products = res.data || [];
 
       if (search.trim()) {
         const key = search.toLowerCase();
         products = products.filter((b) =>
-          [b.name, b.category, String(b.price), String(b.status)]
+          [b.name, b.category, String(b.price), b.status]
             .filter(Boolean)
             .some((v) => v.toLowerCase().includes(key))
         );
       }
 
       setData(products);
-    } catch (err) {
-      console.error("Error fetching products:", err.response || err.message);
-      setError("Failed to load books. Please try again later.");
+    } catch {
+      setError("Failed to load books");
     } finally {
       setLoading(false);
     }
@@ -62,79 +66,58 @@ function CategoryPage() {
 
   /* ================= INITIAL LOAD ================= */
   useEffect(() => {
-    const loadInitial = async () => {
-      await fetchCategories();
-      await fetchData();
-    };
-    loadInitial();
+    fetchCategories();
+    fetchData();
   }, []);
 
-  /* ================= REFRESH ON FILTER/SEARCH ================= */
+  /* ================= FILTER CHANGE ================= */
   useEffect(() => {
     fetchData();
   }, [category, search]);
 
   /* ================= IMAGE FIX ================= */
-  const fixImg = (img) => {
-    if (!img) return "/no-image.png"; // fallback
-    return `http://localhost:3000/uploads/${img}`;
-  };
+  const fixImg = (img) =>
+    img ? `http://localhost:3000/uploads/${img}` : "/no-image.png";
 
   /* ================= ADD TO CART ================= */
   const handleAddToCart = (item) => {
-    if (cartItems.find((p) => p._id === item._id)) {
-      toast.info(`${item.name} is already in the cart!`);
+    if (cartItems.some((p) => p._id === item._id)) {
+      toast.info("Already in cart");
       return;
     }
+
     if (item.status !== "available") {
-      toast.error(`${item.name} is not available`);
+      toast.error("Out of stock");
       return;
     }
+
     const newCart = [...cartItems, { ...item, quantity: 1 }];
     setCartItems(newCart);
     localStorage.setItem("product", JSON.stringify(newCart));
     window.dispatchEvent(new Event("storage"));
-    toast.success(`${item.name} added to cart!`);
+    toast.success("Added to cart");
   };
-
-  /* ================= SKELETON CARD ================= */
-  const SkeletonCard = () => (
-    <div className="bg-white rounded-xl shadow-md animate-pulse p-4 flex flex-col">
-      <div className="h-56 w-full bg-gray-200 rounded-lg mb-4"></div>
-      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-      <div className="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
-      <div className="flex justify-between mt-auto">
-        <div className="h-4 bg-gray-200 w-12 rounded"></div>
-        <div className="h-8 bg-gray-200 w-20 rounded-full"></div>
-      </div>
-    </div>
-  );
 
   return (
     <>
       <HeaderBookStore />
-      <div className="px-6 md:px-16 py-10 bg-gray-50 min-h-screen mt-20">
-        {/* Title */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-3">
-            Choose <span className="text-yellow-500">Books</span> You Like 📚
-          </h1>
-          <p className="text-gray-500 text-sm">
-            Discover your next favorite read or find something new that inspires you.
-          </p>
-        </div>
 
-        {/* Filter section */}
-        <div className="bg-white shadow-md rounded-xl p-4 mb-8 flex flex-col md:flex-row items-center gap-4">
-          <div className="flex flex-wrap gap-2 justify-center w-full">
+      <div className="px-6 md:px-16 py-10 bg-gray-50 min-h-screen mt-20">
+        <h1 className="text-3xl font-bold text-center mb-6">
+          Choose <span className="text-yellow-500">Books</span>
+        </h1>
+
+        {/* FILTER */}
+        <div className="bg-white p-4 rounded-xl shadow mb-8 flex flex-col md:flex-row gap-4">
+          <div className="flex flex-wrap gap-2">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setCategory(cat === "All" ? "" : cat)}
-                className={`px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+                className={`px-4 py-2 rounded-full text-sm ${
                   category === (cat === "All" ? "" : cat)
-                    ? "bg-yellow-500 text-white border-yellow-500"
-                    : "bg-gray-100 hover:bg-yellow-100 text-gray-700"
+                    ? "bg-yellow-500 text-white"
+                    : "bg-gray-100"
                 }`}
               >
                 {cat}
@@ -142,86 +125,59 @@ function CategoryPage() {
             ))}
           </div>
 
-          {/* Search */}
           <div className="relative w-full md:w-1/3">
             <FaSearch className="absolute left-3 top-3 text-gray-400" />
             <input
-              type="text"
-              placeholder="Search books..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-full text-sm focus:ring-2 ring-yellow-400 outline-none"
+              placeholder="Search..."
+              className="w-full pl-10 py-2 border rounded-full"
             />
           </div>
         </div>
 
-        {/* Products */}
+        {/* PRODUCTS */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <SkeletonCard key={i} />
-            ))}
-          </div>
+          <p className="text-center">Loading...</p>
         ) : error ? (
-          <p className="text-center text-red-500 py-20">{error}</p>
-        ) : data.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <p className="text-center text-red-500">{error}</p>
+        ) : data.length ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {data.map((item) => {
               const inCart = cartItems.some((p) => p._id === item._id);
+
               return (
                 <div
                   key={item._id}
-                  className="bg-white rounded-xl shadow-md hover:shadow-2xl transition transform hover:-translate-y-1 p-4 flex flex-col"
+                  className="bg-white p-4 rounded-xl shadow"
                 >
-                  <div className="h-56 w-full overflow-hidden rounded-lg mb-4">
-                    <img
-                      src={fixImg(item.prImg)}
-                      alt={item.name}
-                      onError={(e) => (e.target.src = "/no-image.png")}
-                      className="w-full h-full object-cover hover:scale-105 transition duration-300"
-                    />
-                  </div>
-                  <h2 className="font-semibold text-base text-gray-800 line-clamp-2 mb-1">
-                    {item.name}
-                  </h2>
-                  <p
-                    className={`text-xs font-medium mb-2 ${
-                      item.status === "available" ? "text-green-600" : "text-red-500"
+                  <img
+                    src={fixImg(item.prImg)}
+                    alt={item.name}
+                    className="h-48 w-full object-cover rounded"
+                  />
+                  <h2 className="mt-2 font-semibold">{item.name}</h2>
+                  <p className="text-sm text-gray-500">{item.category}</p>
+                  <p className="font-bold text-yellow-600">${item.price}</p>
+
+                  <button
+                    disabled={inCart || item.status !== "available"}
+                    onClick={() => handleAddToCart(item)}
+                    className={`mt-2 w-full py-2 rounded-full text-sm ${
+                      inCart
+                        ? "bg-gray-300"
+                        : "bg-yellow-500 text-white"
                     }`}
                   >
-                    {item.status === "available" ? "Available" : "Out of stock"}
-                  </p>
-                  <div className="mt-auto flex items-center justify-between">
-                    <span className="text-yellow-600 font-bold text-sm">${item.price}</span>
-                    <button
-                      onClick={() => handleAddToCart(item)}
-                      disabled={inCart || item.status !== "available"}
-                      className={`px-3 py-2 text-xs rounded-full flex items-center gap-1 font-medium transition ${
-                        inCart
-                          ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                          : "bg-yellow-500 hover:bg-yellow-600 text-white"
-                      }`}
-                    >
-                      <FaShoppingCart className="text-xs" />
-                      {inCart ? "In Cart" : "Add"}
-                    </button>
-                  </div>
+                    <FaShoppingCart className="inline mr-1" />
+                    {inCart ? "In Cart" : "Add to Cart"}
+                  </button>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center text-gray-500 py-20">
-            <img
-              src="/no-image.png"
-              alt="No Data"
-              className="w-28 mb-4 opacity-70"
-            />
-            <h2 className="text-lg font-semibold">No Books Found 😕</h2>
-            <p className="text-sm text-gray-400">
-              Try selecting a different category or search keyword.
-            </p>
-          </div>
+          <p className="text-center">No Books Found</p>
         )}
       </div>
 
