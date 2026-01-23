@@ -27,6 +27,7 @@ function Sidebar() {
     { to: "/dash/CategoryList", icon: "fa-shopping-cart", title: "CategoryList" },
     { to: "/dash/AddCategory", icon: "fa-shopping-cart", title: "AddCategory" },
     { to: "/dash/addOrder", icon: "fa-cart-plus", title: "Add Orders" },
+    { to: "/dash/AdminShipping", icon: "fa-cart-plus", title: "Shipping" },
     { to: "/dash/RecycleBin", icon: "fa-cart-plus", title: "RecycleBin" },
     { to: "/dash/reports", icon: "fa-chart-bar", title: "Reports" },
     { to: "/dash/settings", icon: "fa-cog", title: "Settings" },

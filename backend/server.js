@@ -1,3 +1,4 @@
+// server.js
 import express from "express";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
@@ -13,6 +14,7 @@ import customerRoutes from "./router/customerRouter.js";
 import orderRoutes from "./router/orderRoutes.js";
 import productRoutes from "./router/productRouter.js";
 import userRoutes from "./router/useRouter.js";
+import shippingRoutes from "./router/shippingRoutes.js";
 
 dotenv.config();
 
@@ -38,6 +40,7 @@ app.use("/api/customers", customerRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/shipping", shippingRoutes);
 
 // Root route
 app.get("/", (req, res) => res.send("Welcome to BookMart Backend API"));
@@ -46,7 +49,6 @@ app.get("/", (req, res) => res.send("Welcome to BookMart Backend API"));
 app.get("/api/allImg", (req, res) => {
   fs.readdir(uploadDir, (err, files) => {
     if (err) return res.status(500).json({ message: "Cannot read uploads folder", error: err });
-
     const allImg = files.filter(file => /\.(jpg|jpeg|png|gif|webp)$/i.test(file));
     res.json({ allImg });
   });

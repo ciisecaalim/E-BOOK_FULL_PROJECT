@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from "react";
-import { FaSearch } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,8 +7,8 @@ function BookCard() {
   const cartIconRef = useRef(null);
 
   const [data, setData] = useState([]);
-  const [categories, setCategories] = useState(["All"]);
-  const [category, setCategory] = useState("");
+  const [categories, setCategories] = useState([{ _id: "all", name: "All" }]);
+  const [category, setCategory] = useState("all"); // store category _id
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [cartItems, setCartItems] = useState([]);
@@ -34,7 +33,8 @@ function BookCard() {
       const res = await axios.get(
         "http://localhost:3000/api/products/categories/read"
       );
-      setCategories(["All", ...res.data]);
+      // always include "All" as first option
+      setCategories([{ _id: "all", name: "All" }, ...res.data]);
     } catch {
       toast.error("Failed to load categories");
     }
@@ -44,10 +44,8 @@ function BookCard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const q = category ? `?category=${category}` : "";
-      const res = await axios.get(
-        `http://localhost:3000/api/products/read${q}`
-      );
+      const q = category && category !== "all" ? `?category=${category}` : "";
+      const res = await axios.get(`http://localhost:3000/api/products/read${q}`);
 
       let products = res.data || [];
 
@@ -66,18 +64,16 @@ function BookCard() {
     }
   };
 
-  /* ================= INITIAL LOAD ================= */
   useEffect(() => {
     fetchCategories();
     fetchData();
   }, []);
 
-  /* ================= RELOAD ON FILTER ================= */
   useEffect(() => {
     fetchData();
   }, [category, search]);
 
-  /* ================= ADD TO CART (NO LOGIN) ================= */
+  /* ================= ADD TO CART ================= */
   const handleAddToCart = (item, e) => {
     if (cartItems.find((c) => c._id === item._id)) {
       toast.info("Already in cart");
@@ -94,7 +90,7 @@ function BookCard() {
     localStorage.setItem("product", JSON.stringify(updatedCart));
     window.dispatchEvent(new Event("cartUpdated"));
 
-    /* ===== Fly to cart animation ===== */
+    // Fly animation
     const rectBtn = e.currentTarget.getBoundingClientRect();
     const rectCart = cartIconRef.current?.getBoundingClientRect() || {
       left: window.innerWidth - 60,
@@ -122,11 +118,7 @@ function BookCard() {
           <motion.img
             src={flyItem.img}
             initial={{ x: flyItem.x, y: flyItem.y, scale: 1 }}
-            animate={{
-              x: flyItem.targetX,
-              y: flyItem.targetY,
-              scale: 0.2,
-            }}
+            animate={{ x: flyItem.targetX, y: flyItem.targetY, scale: 0.2 }}
             transition={{ duration: 0.8 }}
             className="fixed w-16 h-20 rounded-lg z-50"
           />
@@ -134,23 +126,22 @@ function BookCard() {
       </AnimatePresence>
 
       {/* FILTERS */}
-      <div className="bg-white p-4 rounded-xl shadow flex flex-wrap gap-2 mb-6">
-        {categories.map((c) => (
-          <button
-            key={c}
-            onClick={() => setCategory(c === "All" ? "" : c)}
-            className={`px-4 py-2 rounded-full ${
-              category === c ? "bg-yellow-500 text-white" : "bg-gray-100"
-            }`}
-          >
-            {c}
-          </button>
-        ))}
+      <div className="bg-white p-4 rounded-xl shadow flex items-center gap-4 mb-6">
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="border p-2 rounded-lg"
+        >
+          {categories.map((c) => (
+            <option key={c._id} value={c._id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
 
-        <div className="relative ml-auto">
-          <FaSearch className="absolute left-3 top-3 text-gray-400" />
+        <div className="relative flex-1">
           <input
-            className="pl-10 pr-3 py-2 rounded-full border"
+            className="pl-3 pr-3 py-2 rounded-full border w-full"
             placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -161,7 +152,7 @@ function BookCard() {
       {/* PRODUCTS */}
       {!loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {data.map((item) => {
+          {data.slice(0, 8).map((item) => {
             const inCart = cartItems.find((c) => c._id === item._id);
 
             return (
@@ -189,9 +180,7 @@ function BookCard() {
                 </p>
 
                 <div className="flex justify-between items-center mt-3">
-                  <span className="text-yellow-600 font-bold">
-                    ${item.price}
-                  </span>
+                  <span className="text-yellow-600 font-bold">${item.price}</span>
 
                   <button
                     disabled={inCart}

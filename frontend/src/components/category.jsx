@@ -7,32 +7,33 @@ import { toast } from "react-toastify";
 
 function CategoryPage() {
   const [data, setData] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [category, setCategory] = useState("");
+  const [categories, setCategories] = useState([{ _id: "all", name: "All" }]);
+  const [category, setCategory] = useState("all"); // store _id
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [cartItems, setCartItems] = useState([]);
 
-  /* ================= LOAD CART ================= */
+  /* Load Cart */
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("product")) || [];
     setCartItems(stored);
   }, []);
 
-  /* ================= FETCH CATEGORIES ================= */
+  /* Fetch Categories */
   const fetchCategories = async () => {
     try {
       const res = await axios.get(
         "http://localhost:3000/api/products/categories/read"
       );
-      setCategories(["All", ...res.data]);
+      // Add "All" at the beginning
+      setCategories([{ _id: "all", name: "All" }, ...res.data]);
     } catch {
       toast.error("Failed to load categories");
     }
   };
 
-  /* ================= FETCH PRODUCTS ================= */
+  /* Fetch Products */
   const fetchData = async () => {
     setLoading(true);
     setError("");
@@ -41,7 +42,7 @@ function CategoryPage() {
       const res = await axios.get(
         "http://localhost:3000/api/products/read",
         {
-          params: category ? { category } : {}
+          params: category !== "all" ? { category } : {}
         }
       );
 
@@ -64,22 +65,19 @@ function CategoryPage() {
     }
   };
 
-  /* ================= INITIAL LOAD ================= */
+  /* Initial Load */
   useEffect(() => {
     fetchCategories();
     fetchData();
   }, []);
 
-  /* ================= FILTER CHANGE ================= */
   useEffect(() => {
     fetchData();
   }, [category, search]);
 
-  /* ================= IMAGE FIX ================= */
   const fixImg = (img) =>
     img ? `http://localhost:3000/uploads/${img}` : "/no-image.png";
 
-  /* ================= ADD TO CART ================= */
   const handleAddToCart = (item) => {
     if (cartItems.some((p) => p._id === item._id)) {
       toast.info("Already in cart");
@@ -108,21 +106,19 @@ function CategoryPage() {
         </h1>
 
         {/* FILTER */}
-        <div className="bg-white p-4 rounded-xl shadow mb-8 flex flex-col md:flex-row gap-4">
-          <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat === "All" ? "" : cat)}
-                className={`px-4 py-2 rounded-full text-sm ${
-                  category === (cat === "All" ? "" : cat)
-                    ? "bg-yellow-500 text-white"
-                    : "bg-gray-100"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+        <div className="bg-white p-4 rounded-xl shadow mb-8 flex flex-col md:flex-row gap-4 items-center">
+          <div>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="border rounded-lg p-2"
+            >
+              {categories.map((cat) => (
+                <option key={cat._id} value={cat._id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="relative w-full md:w-1/3">
@@ -147,10 +143,7 @@ function CategoryPage() {
               const inCart = cartItems.some((p) => p._id === item._id);
 
               return (
-                <div
-                  key={item._id}
-                  className="bg-white p-4 rounded-xl shadow"
-                >
+                <div key={item._id} className="bg-white p-4 rounded-xl shadow">
                   <img
                     src={fixImg(item.prImg)}
                     alt={item.name}
@@ -164,9 +157,7 @@ function CategoryPage() {
                     disabled={inCart || item.status !== "available"}
                     onClick={() => handleAddToCart(item)}
                     className={`mt-2 w-full py-2 rounded-full text-sm ${
-                      inCart
-                        ? "bg-gray-300"
-                        : "bg-yellow-500 text-white"
+                      inCart ? "bg-gray-300" : "bg-yellow-500 text-white"
                     }`}
                   >
                     <FaShoppingCart className="inline mr-1" />

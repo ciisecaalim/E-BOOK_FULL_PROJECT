@@ -33,6 +33,7 @@ import OrderHistory from "./components/OrderHistory";
 import InvoicePDF from "./components/InvoicePDF";
 import StripePayment from "./components/StripePayment";
 import PayPalPayment from "./components/PayPalPayment";
+import AdminShipping from "./components/AdminShipping";
 
 function App() {
   return (
@@ -78,6 +79,7 @@ function App() {
           <Route path="customers" element={<CustomerTable />} />
           <Route path="CategoryList" element={<CategoryList />} />
           <Route path="reports" element={<ReportsPage />} />
+          <Route path="AdminShipping" element={<AdminShipping />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

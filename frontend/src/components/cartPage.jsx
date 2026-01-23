@@ -9,18 +9,14 @@ function CartPage() {
 
   const [cartItems, setCartItems] = useState([]);
   const [customer, setCustomer] = useState(null);
-  const [customerLoading, setCustomerLoading] = useState(true);
   const [shipping, setShipping] = useState(5);
   const [totalCost, setTotalCost] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  const fixImg = (img) =>
-    img ? `http://localhost:3000/uploads/${img}` : "/no-image.png";
+  const fixImg = (img) => (img ? `http://localhost:3000/uploads/${img}` : "/no-image.png");
 
-  /* =========================
-     LOAD CART + MERGE PENDING ITEMS
-  ========================== */
+  /* ================= LOAD CART ================= */
   useEffect(() => {
     const savedCart = JSON.parse(localStorage.getItem("product")) || [];
     const pending = JSON.parse(localStorage.getItem("pendingItem")) || [];
@@ -32,60 +28,50 @@ function CartPage() {
       if (!existing) {
         mergedCart.push(p);
       } else {
-        // Update quantity if already exists
         mergedCart = mergedCart.map((c) =>
           c._id === p._id ? { ...c, quantity: c.quantity + p.quantity } : c
         );
       }
     });
 
+    // Convert category from object/ID to name if needed
+    mergedCart = mergedCart.map((c) => ({
+      ...c,
+      category: typeof c.category === "object" ? c.category.name : c.category,
+    }));
+
     setCartItems(mergedCart);
     localStorage.setItem("product", JSON.stringify(mergedCart));
     localStorage.removeItem("pendingItem");
   }, []);
 
-  /* =========================
-     FETCH CUSTOMER
-  ========================== */
+  /* ================= FETCH CUSTOMER ================= */
   useEffect(() => {
     const email = localStorage.getItem("customerEmail");
 
     if (!email) {
       setCustomer(null);
-      setCustomerLoading(false);
       return;
     }
 
-    fetch(
-      `http://localhost:3000/api/customers/get/${encodeURIComponent(email)}`
-    )
+    fetch(`http://localhost:3000/api/customers/get/${encodeURIComponent(email)}`)
       .then((res) => res.json())
       .then((data) => setCustomer(data))
-      .catch(() => setCustomer(null))
-      .finally(() => setCustomerLoading(false));
+      .catch(() => setCustomer(null));
   }, []);
 
-  /* =========================
-     UPDATE TOTAL
-  ========================== */
+  /* ================= UPDATE TOTAL ================= */
   useEffect(() => {
     localStorage.setItem("product", JSON.stringify(cartItems));
-    const itemsTotal = cartItems.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
+    const itemsTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     setTotalCost(itemsTotal + shipping);
   }, [cartItems, shipping]);
 
-  /* =========================
-     CART ACTIONS
-  ========================== */
+  /* ================= CART ACTIONS ================= */
   const updateQuantity = (id, delta) => {
     setCartItems((prev) =>
       prev.map((item) =>
-        item._id === id
-          ? { ...item, quantity: Math.max(1, item.quantity + delta) }
-          : item
+        item._id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item
       )
     );
   };
@@ -94,9 +80,7 @@ function CartPage() {
     setCartItems((prev) => prev.filter((item) => item._id !== id));
   };
 
-  /* =========================
-     CHECKOUT
-  ========================== */
+  /* ================= CHECKOUT ================= */
   const handleCheckout = async () => {
     if (!customer) {
       toast.info("Fadlan same login si aad u checkout-gareyso");
@@ -121,6 +105,7 @@ function CartPage() {
         products: cartItems.map((item) => ({
           productId: item._id,
           name: item.name,
+          category: item.category, // category name
           quantity: item.quantity,
           price: item.price,
           total: item.price * item.quantity,
@@ -152,10 +137,7 @@ function CartPage() {
     }
   };
 
-  const itemsTotal = cartItems.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  );
+  const itemsTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   return (
     <>
@@ -170,9 +152,7 @@ function CartPage() {
 
           <div className="bg-white shadow-xl rounded-xl p-6 space-y-4">
             {cartItems.length === 0 ? (
-              <p className="text-center text-gray-500 py-10">
-                Cart waa madhan yahay
-              </p>
+              <p className="text-center text-gray-500 py-10">Cart waa madhan yahay</p>
             ) : (
               cartItems.map((item) => (
                 <div
@@ -237,10 +217,7 @@ function CartPage() {
 
           <div className="flex justify-between">
             <span>Shipping</span>
-            <select
-              value={shipping}
-              onChange={(e) => setShipping(Number(e.target.value))}
-            >
+            <select value={shipping} onChange={(e) => setShipping(Number(e.target.value))}>
               <option value={5}>Standard - $5</option>
               <option value={10}>Express - $10</option>
             </select>

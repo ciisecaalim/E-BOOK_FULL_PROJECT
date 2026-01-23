@@ -9,8 +9,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  BarChart,
-  Bar,
 } from "recharts";
 
 // --- StatCard ---
@@ -39,34 +37,6 @@ function StatCard({ title, value, change, positive }) {
   );
 }
 
-// --- Progress ---
-function Progress({ percent, color }) {
-  const safePercent = Math.min(Math.max(percent || 0, 0), 100);
-  return (
-    <div className="h-2 w-full rounded-full bg-purple-800/40">
-      <div
-        className="h-2 rounded-full transition-all duration-1000 ease-in-out"
-        style={{ width: `${safePercent}%`, backgroundColor: color }}
-      />
-    </div>
-  );
-}
-
-// --- Donut ---
-function Donut({ percent, color }) {
-  const safePercent = Math.min(Math.max(percent || 0, 0), 100);
-  return (
-    <div
-      className="w-28 h-28 rounded-full grid place-items-center"
-      style={{ backgroundColor: "#6b21a8" }}
-    >
-      <div className="w-20 h-20 rounded-full bg-purple-800 grid place-items-center shadow-inner">
-        <span className="text-white font-semibold">{safePercent}%</span>
-      </div>
-    </div>
-  );
-}
-
 // --- Mini Bar Chart ---
 function MiniBarChart({ values }) {
   if (!values || !values.length) return null;
@@ -76,15 +46,19 @@ function MiniBarChart({ values }) {
   const [hoverIndex, setHoverIndex] = useState(null);
 
   useEffect(() => {
+    let timeouts = [];
     values.forEach((v, i) => {
-      setTimeout(() => {
+      const t = setTimeout(() => {
         setAnimatedHeights((prev) => {
           const newHeights = [...prev];
           newHeights[i] = (v / max) * 100;
           return newHeights;
         });
       }, i * 150);
+      timeouts.push(t);
     });
+
+    return () => timeouts.forEach((t) => clearTimeout(t));
   }, [values, max]);
 
   return (
@@ -108,7 +82,6 @@ function MiniBarChart({ values }) {
 function Dashboard() {
   const alertSound = useRef(null);
 
-  // --- Static Products & Customers ---
   const [products, setProducts] = useState([
     { name: "Product A", quantity: 10, category: "Electronics" },
     { name: "Product B", quantity: 3, category: "Electronics" },
@@ -125,51 +98,47 @@ function Dashboard() {
     days.map((day) => ({ day, income: Math.floor(Math.random() * 2000 + 1000) }))
   );
 
-  const stockData = products.map((p) => ({ name: p.name, stock: p.quantity }));
-
-  // --- Auto Refresh Every 1 Minute ---
+  // Auto Refresh Every 1 Minute
   useEffect(() => {
     const refreshData = () => {
-      // Simulate new income
-      setIncomeData(days.map((day) => ({ day, income: Math.floor(Math.random() * 2000 + 1000) })));
-
-      // If products were dynamic from API, refresh them here
+      setIncomeData(
+        days.map((day) => ({ day, income: Math.floor(Math.random() * 2000 + 1000) }))
+      );
       setProducts((prev) =>
         prev.map((p) => ({ ...p, quantity: Math.max(0, p.quantity + Math.floor(Math.random() * 3 - 1)) }))
       );
     };
 
-    refreshData(); // initial refresh
-    const interval = setInterval(refreshData, 60000); // 1 minute
-
+    refreshData();
+    const interval = setInterval(refreshData, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  // --- Low Stock & Out of Stock ---
   const totalStock = products.reduce((sum, p) => sum + (p.quantity || 0), 0);
   const outOfStock = products.filter((p) => p.quantity === 0).length;
   const lowStock = products.filter((p) => p.quantity > 0 && p.quantity < 5).length;
 
-  // Play alert sound if lowStock exists
-  useEffect(() => {
-    if (lowStock > 0 && alertSound.current) {
-      alertSound.current.play();
+  // Category counts
+  const categories = Object.entries(
+    products.reduce((acc, p) => {
+      const key = p.category || "Uncategorized";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {})
+  );
+
+  const handlePlayAlert = () => {
+    if (alertSound.current) {
+      alertSound.current.play().catch((err) => console.log("Audio blocked:", err));
+    }
+    if (lowStock > 0) {
       alert(`Warning! ${lowStock} product(s) have low stock.`);
     }
-  }, [lowStock]);
-
-  // --- Categories ---
-  const categoryToCount = products.reduce((acc, p) => {
-    const key = p.category || "Uncategorized";
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
-  const categories = Object.entries(categoryToCount);
+  };
 
   return (
     <div className="min-h-screen bg-purple-700 p-8 space-y-8 text-white">
       <audio ref={alertSound} src="/alert.mp3" preload="auto" />
-
       <h1 className="text-4xl font-bold mb-6">Welcome back, Admin!</h1>
 
       {/* Top Stats */}
@@ -203,20 +172,6 @@ function Dashboard() {
             <Legend />
             <Line type="monotone" dataKey="income" stroke="#d8b4fe" strokeWidth={2} activeDot={{ r: 8 }} />
           </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Stock Levels */}
-      <div className="rounded-2xl bg-purple-800 p-6">
-        <p className="font-semibold mb-4">Stock Levels</p>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={stockData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.2)" />
-            <XAxis dataKey="name" stroke="rgba(255,255,255,0.7)" />
-            <YAxis stroke="rgba(255,255,255,0.7)" />
-            <Tooltip contentStyle={{ backgroundColor: "#6b21a8", borderRadius: 5 }} />
-            <Bar dataKey="stock" fill="#d8b4fe" radius={[4, 4, 0, 0]} />
-          </BarChart>
         </ResponsiveContainer>
       </div>
 
@@ -255,6 +210,13 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      <button
+        onClick={handlePlayAlert}
+        className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+      >
+        Check Low Stock Alert
+      </button>
     </div>
   );
 }
